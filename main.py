@@ -1,11 +1,10 @@
+#! /usr/bin/python3
+
 import PySimpleGUI as sg
 import sys
 import os.path
-import bibtexparser
+import parsebibtex
 import pyperclip
-
-from pybtex.database.input import bibtex
-
 
 class listentries:
     def __init__(self, key, value):
@@ -24,120 +23,128 @@ def repr_persons(persons):
 
     return ", ".join(rl)
 
+def get_bibfilepath():
+    bibfilepath = ""
+    if len(sys.argv) >= 2:
+        if os.path.isfile(sys.argv[1]):
+            bibfilepath = sys.argv[1]
+        else:
+            print(sys.argv[1] + " is not a file")
+    return bibfilepath
 
-bibfilepath = ""
-if len(sys.argv) >= 2:
-    if os.path.isfile(sys.argv[1]):
-        bibfilepath = sys.argv[1]
 
-
-sg.theme("DarkBlue3")
-sg.set_options(font=("Arial", 12))
-
-# First the window layout in 2 columns
-
-file_list_column = [
-    [
-        sg.Text("Bibtex file"),
-        sg.Input(bibfilepath, size=(25, 1), enable_events=True, key="-FILE-"),
-        sg.FileBrowse(),
-        sg.Button("Read"),
-    ],
-    [
-        sg.Listbox( values=[]
-                  , enable_events=True
-                  , size=(40, 20)
-                  , key="-ENTRY LIST-"
-                  )
-    ],
-]
-
-# For now will only show the name of the file that was chosen
-image_viewer_column = [
-    [sg.Text("Choose an article from list on left:")],
-    [sg.Text(size=(40, 1), key="-ID-"), sg.Button("Copy")],
-    [
-        sg.Multiline( default_text="\n"
-                    , disabled=True
-                    , enable_events=False
-                    , size=(40, 20)
-                    , key="-CONTENTS-"
-                    )
-    ],
-]
-
-# Full layout
-layout = [
-    [
-        sg.Column(file_list_column),
-        sg.VSeperator(),
-        sg.Column(image_viewer_column),
+def get_layout(bibfilepath):
+# The window layout in 2 columns
+    file_list_column = [
+        [
+            sg.Text("Bibtex file"),
+            sg.Input(bibfilepath, size=(25, 1), enable_events=True, key="-FILE-"),
+            sg.FileBrowse(),
+            sg.Button("Read"),
+        ],
+        [
+            sg.Listbox( values=[]
+                      , enable_events=True
+                      , size=(40, 20)
+                      , key="-ENTRY LIST-"
+                      )
+        ],
     ]
-]
 
-window = sg.Window("Bib Viewer", layout, finalize=True)
-ID = ""
+    # For now will only show the name of the file that was chosen
+    image_viewer_column = [
+        [sg.Text("Choose an article from list on left:")],
+        [sg.Text(size=(40, 1), key="-ID-", enable_events=True), sg.Button("Copy")],
+        [
+            sg.Multiline( default_text="\n"
+                        , disabled=True
+                        , enable_events=False
+                        , size=(40, 20)
+                        , key="-CONTENTS-"
+                        )
+        ],
+    ]
 
-# Run the Event Loop
-while True:
-    event, values = window.read()
-    if event == "Exit" or event == sg.WIN_CLOSED:
-        break
+    # Full layout
+    layout = [
+        [
+            sg.Column(file_list_column),
+            sg.VSeperator(),
+            sg.Column(image_viewer_column),
+        ]
+    ]
+    return layout
+
+def read_library(window, libpath):
     # Folder name was filled in, make a list of files in the folder
-    if event == "Read":
-        window["-CONTENTS-"].update("")
-        if not os.path.isfile(values["-FILE-"]):
-            window["-ENTRY LIST-"].update("")
-            continue
-        #with open(values["-FILE-"]) as f:
-        #    bib_database = bibtexparser.load(f)
-        parser = bibtex.Parser()
-        bib_data = parser.parse_file(values["-FILE-"])
+    window["-CONTENTS-"].update("")
+    if not os.path.isfile(libpath):
+        window["-ENTRY LIST-"].update("")
+        return None
 
-        # create a list of indices in the entries list, and the titles of the
-        # corresponding articles, so as to be able to display and select
-        # articles in the entry list.
-        articlelist = []
-        #i = 0
-        #while i < len(bib_database.entries):
-        #    entry = bib_database.entries[i]
-        #    articlelist.append(listentries(i, entry['title']))
-        #    i += 1
-        for key in bib_data.entries.keys():
-            entry = bib_data.entries[key]
-            articlelist.append(listentries(key, entry.fields['title']))
+    bib_data = parsebibtex.parse_library(libpath)
 
-        window["-ENTRY LIST-"].update(articlelist)
+    # create a list of indices in the entries list, and the titles of the
+    # corresponding articles, so as to be able to display and select
+    # articles in the entry list.
+    articlelist = []
+    for cite_key in bib_data:
+        entry = bib_data[cite_key]
+        articlelist.append(listentries(cite_key, "- " + entry["fields"]['title']))
 
-    elif event == "-ENTRY LIST-":  # A file was chosen from the listbox
-        # clear content multiline
-        window["-CONTENTS-"].update("")
-        #entry = bib_database.entries[values["-ENTRY LIST-"][0].key]
-        print(values["-ENTRY LIST-"][0].key)
-        entry = bib_data.entries[values["-ENTRY LIST-"][0].key]
-        contentlist = []
+    window["-ENTRY LIST-"].update(articlelist)
+    return bib_data
 
-        #for key in entry.keys():
-        for key in entry.fields.keys():
-            contentlist.append("{0}: {1}".format(key, entry.fields[key]))
-            window["-CONTENTS-"].update(key + ":\n", font=('Arial', 14, 'bold'), append=True)
-            #window["-CONTENTS-"].update(entry[key] + "\n\n", font=('Arial', 12), append=True)
-            window["-CONTENTS-"].update(entry.fields[key] + "\n\n", font=('Arial', 12), append=True)
-        for key in entry.persons.keys():
-            contentlist.append("{0}: {1}".format(key, entry.persons[key]))
-            window["-CONTENTS-"].update(key + ":\n", font=('Arial', 14, 'bold'), append=True)
-            #window["-CONTENTS-"].update(entry[key] + "\n\n", font=('Arial', 12), append=True)
-            window["-CONTENTS-"].update(repr_persons(entry.persons[key]) + "\n\n", font=('Arial', 12), append=True)
+def choose_entry(window, bib_data):
+    # clear content multiline
+    window["-CONTENTS-"].update("")
+    entry = bib_data[values["-ENTRY LIST-"][0].key]
+    contentlist = []
 
-        #window["-ID-"].update(entry["ID"])
-        window["-ID-"].update(values["-ENTRY LIST-"][0].key)
-        #ID = entry["ID"]
-        ID = values["-ENTRY LIST-"][0].key
-    elif event == "Copy":
-        if not ID == "":
-            pyperclip.copy(ID)
+    for field in entry["fields"]:
+        contentlist.append(f'{field}: \n{entry["fields"][field]}\n')
+    if len(entry["comments"]) > 0:
+        contentlist.append("comments:")
+        for comment in entry["comments"]:
+            contentlist.append("%" + entry["comments"][comment])
 
-#with open("outdump.bib", 'w') as f:
-#    bibtexparser.dump(bib_database, f)
-window.close()
+
+    window["-CONTENTS-"].update("\n".join(contentlist))
+
+    window["-ID-"].update(values["-ENTRY LIST-"][0].key)
+    ID = values["-ENTRY LIST-"][0].key
+    return ID
+
+if __name__ == "__main__":
+    bibfilepath = get_bibfilepath()
+
+    sg.theme("DarkBlue3")
+    sg.set_options(font=("Arial", 12))
+    layout = get_layout(bibfilepath)
+    window = sg.Window("Bib Viewer", layout, finalize=True)
+    ID = ""
+
+    bib_data = read_library(window, bibfilepath)
+
+    # Run the Event Loop
+    while True:
+        event, values = window.read()
+        if event == "Exit" or event == sg.WIN_CLOSED:
+            break
+
+        if event == "Read":
+            # read in the bibtex library
+            bibfilepath = values["-FILE-"]
+            bib_data = read_library(window, bibfilepath)
+        elif event == "-ENTRY LIST-" and len(values["-ENTRY LIST-"]) > 0:
+            # A file was chosen from the listbox
+            ID = choose_entry(window, bib_data)
+        elif event == "Copy":
+            if not ID == "":
+                pyperclip.copy(ID)
+
+    if bib_data:
+        with open("outdump.bib", 'w') as f:
+            parsebibtex.dump(bib_data, f)
+    window.close()
 

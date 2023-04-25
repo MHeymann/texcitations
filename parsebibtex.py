@@ -95,10 +95,10 @@ def parse_bracket(f, c):
             bcontent += c
             c = f.read(1)
 
-    #skip closing bracket
+    #skip over closing bracket
     c = f.read(1)
 
-    f, c = parse_whitespace(f, c)
+    #f, c = parse_whitespace(f, c)
 
     return bcontent, f, c
 
@@ -237,29 +237,16 @@ def parse_entry(f, c):
 
 def bibtexlibrary_repr(bibtexlibrary):
     s = ""
-    for e_type in bibtexlibrary:
-        for cite_key in bibtexlibrary[e_type]:
-            s += repr_entry(bibtexlibrary[e_type][cite_key])
-            s += "\n\n"
+    for cite_key in bibtexlibrary:
+        s += repr_entry(bibtexlibrary[cite_key])
+        s += "\n\n"
     return s
 
+def dump(bibtexlibrary, f):
+    f.write(bibtexlibrary_repr(bibtexlibrary))
+
 def parse_library(fpath):
-    bibtexlibrary = {
-        "article" : {},
-        "book" : {},
-        "booklet" : {},
-        "conference" : {},
-        "inbook" : {},
-        "incollection" : {},
-        "inproceedings" : {},
-        "manual" : {},
-        "mastersthesis" : {},
-        "misc" : {},
-        "phdthesis" : {},
-        "proceedings" : {},
-        "techreport" : {},
-        "unpublished" : {}
-        }
+    bibtexlibrary = {}
 
     with open(fpath) as f:
         c = f.read(1)
@@ -274,13 +261,11 @@ def parse_library(fpath):
             # xxx here
             entry, f, c = parse_entry(f, c)
 
-            bibtexlibrary[entry["entry_type"]][entry["cite_key"]] = entry
-
-            #print(repr_entry(entry))
-            #print("")
-    print(bibtexlibrary_repr(bibtexlibrary))
+            bibtexlibrary[entry["cite_key"]] = entry
 
     return bibtexlibrary
 
-parse_library("../bibliography.bib")
+
+#bl = parse_library("../bibliography.bib")
 #parse_library("./bib.bib")
+#print(bibtexlibrary_repr(bl))
