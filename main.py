@@ -115,6 +115,7 @@ def choose_entry(window, bib_data):
     ID = values["-ENTRY LIST-"][0].key
     return ID
 
+
 if __name__ == "__main__":
     bibfilepath = get_bibfilepath()
 
@@ -144,7 +145,8 @@ if __name__ == "__main__":
                 pyperclip.copy(ID)
 
     if bib_data:
-        with open("outdump.bib", 'w') as f:
+        with open("outdump.bib", 'w', encoding="utf8") as f:
             parsebibtex.dump(bib_data, f)
     window.close()
+
 

@@ -57,7 +57,6 @@ def parse_quote(f, c):
             f, c = parse_whitespace(f, c)
         elif c == "{":
             nbracket, f, c = parse_bracket(f, c)
-            f, c = parse_whitespace(f, c)
             qcontent += "{" + nbracket + "}"
         else:
             qcontent += c
@@ -68,7 +67,7 @@ def parse_quote(f, c):
 
     f, c = parse_whitespace(f, c)
 
-    return qcontent, f, c
+    return qcontent.strip(), f, c
 
 
 
@@ -89,7 +88,6 @@ def parse_bracket(f, c):
             f, c = parse_whitespace(f, c)
         elif c == "{":
             nbracket, f, c = parse_bracket(f, c)
-            f, c = parse_whitespace(f, c)
             bcontent += "{" + nbracket + "}"
         else:
             bcontent += c
@@ -98,9 +96,7 @@ def parse_bracket(f, c):
     #skip over closing bracket
     c = f.read(1)
 
-    #f, c = parse_whitespace(f, c)
-
-    return bcontent, f, c
+    return bcontent.strip(), f, c
 
 
 def parse_number(f, c):
@@ -192,18 +188,49 @@ def parse_entry_body(f, c):
             lcomment, f, c = parse_line_comment(f, c)
             lcomments[i] = lcomment
         else:
-            fname, v, f, c = parse_field(f,c)
-            fields[fname] = v
+            fname, fvalue, f, c = parse_field(f,c)
+            if fname == "author" or fname == "editor":
+                fvalue = format_names(fvalue)
+            fields[fname] = fvalue
         i += 1
 
     f, c = parse_whitespace(f, c)
     return key, fields, lcomments, f, c
 
+def format_names(authors):
+    author_list = authors.split(" and ")
+    formatted_names = []
+    for author in author_list:
+        if "," in author:
+            formatted_names.append(author)
+            continue
+        names = author.split(" ")
+        formatted_names.append("{surname}, {names}".format(surname=names[-1],
+            names=" ".join(names[0:-1])))
+    return " and ".join(formatted_names)
+
 def repr_entry(entry):
     s = f'@{entry["entry_type"]}{{{entry["cite_key"]},\n'
 
+    field_order = [ "author", "editor"
+                  , "title"
+                  , "booktitle"
+                  , "journal"
+                  , "chapter", "pages"
+                  , "publisher", "school", "institution"
+                  , "year"
+                  , "note"
+                  , "doi", "url"
+                  ]
     l = []
-    for k in entry["fields"].keys():
+    for key in field_order:
+        if not key in entry["fields"]:
+            continue
+        l.append(f'  {key : <9} = {{{entry["fields"][key]}}},')
+
+    for k in entry["fields"]:
+        if k in field_order:
+            continue
         l.append(f'  {k : <9} = {{{entry["fields"][k]}}},')
     for comm in entry["comments"]:
         l.insert(comm, "  %" + entry["comments"][comm])
@@ -248,7 +275,7 @@ def dump(bibtexlibrary, f):
 def parse_library(fpath):
     bibtexlibrary = {}
 
-    with open(fpath) as f:
+    with open(fpath, encoding="utf8") as f:
         c = f.read(1)
         f, c = parse_whitespace(f, c)
         while c:
@@ -266,6 +293,6 @@ def parse_library(fpath):
     return bibtexlibrary
 
 
-#bl = parse_library("../bibliography.bib")
-#parse_library("./bib.bib")
-#print(bibtexlibrary_repr(bl))
+#if __name__ = "__main__":
+#    bl = parse_library("../bibliography2/bibliography.bib")
+#    print(bibtexlibrary_repr(bl))
