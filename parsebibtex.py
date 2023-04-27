@@ -198,16 +198,75 @@ def parse_entry_body(f, c):
     return key, fields, lcomments, f, c
 
 def format_names(authors):
-    author_list = authors.split(" and ")
+    author_list = []
+
+    name = ""
+    i = 0
+    while i < len(authors) - 4:
+        if authors[i] == "{":
+            i, bracket = skip_bracket(authors, i)
+            name += f'{{{bracket}}}'
+        elif authors[i: i+5] == " and ":
+            author_list.append(name)
+            i += 5
+            name = ""
+        else:
+            name += authors[i]
+            i += 1
+    name += authors[i:]
+    author_list.append(name)
+
+
     formatted_names = []
     for author in author_list:
         if "," in author:
             formatted_names.append(author)
             continue
-        names = author.split(" ")
-        formatted_names.append("{surname}, {names}".format(surname=names[-1],
-            names=" ".join(names[0:-1])))
+        names = []
+        name = ""
+        i = 0
+        while i < len(author):
+            if author[i] == "{":
+                i, bracket = skip_bracket(author, i)
+                name += f"{{{bracket}}}"
+            elif author[i] == " ":
+                names.append(name)
+                name = ""
+                i += 1
+            else:
+                name += author[i]
+                i += 1
+        names.append(name)
+        #names = author.split(" ")
+        if len(names) > 1:
+            formatted_names.append("{surname}, {names}".format(surname=names[-1],
+                names=" ".join(names[0:-1])))
+        else:
+            formatted_names.append(names[0])
     return " and ".join(formatted_names)
+
+def skip_bracket(authors, i):
+    if not authors[i] == "{":
+        print ("open brackets with '{'")
+        exit()
+
+    i += 1
+
+    cont = ""
+    while not authors[i] == "}":
+        if authors[i] == "{":
+            i, bracket = skip_bracket(authors, i)
+            cont += f"{{{bracket}}}"
+        else:
+            cont += authors[i]
+            i += 1
+
+    #skip over closing bracket
+    i += 1
+
+    return i, cont
+
+
 
 def repr_entry(entry):
     s = f'@{entry["entry_type"]}{{{entry["cite_key"]},\n'
