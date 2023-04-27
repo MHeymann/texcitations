@@ -49,6 +49,10 @@ def get_layout(bibfilepath):
                       , key="-ENTRY LIST-"
                       )
         ],
+        [
+            sg.Text("Search"),
+            sg.Input("", size=(25, 1), enable_events=True, key="-SEARCH-"),
+        ],
     ]
 
     # For now will only show the name of the file that was chosen
@@ -94,6 +98,30 @@ def read_library(window, libpath):
 
     window["-ENTRY LIST-"].update(articlelist)
     return bib_data
+
+def searchterm_in_list(searchterm, l):
+    for s in l:
+        if searchterm in l[s].lower():
+            return True
+    return False
+
+def search_for_occurance(window, searchterm, bib_data):
+
+    searchterm = searchterm.lower()
+    window["-CONTENTS-"].update("")
+    articlelist = []
+    for cite_key in bib_data:
+        entry = bib_data[cite_key]
+        for field in entry["fields"]:
+            if searchterm in entry["fields"][field].lower() or \
+                    searchterm in field or \
+                    searchterm in entry["cite_key"].lower() or \
+                    searchterm in entry["entry_type"].lower() or \
+                    searchterm_in_list(searchterm, entry["comments"]):
+                articlelist.append(listentries(cite_key, "- " + entry["fields"]['title']))
+                break
+
+    window["-ENTRY LIST-"].update(articlelist)
 
 def choose_entry(window, bib_data):
     # clear content multiline
@@ -143,6 +171,8 @@ if __name__ == "__main__":
         elif event == "Copy":
             if not ID == "":
                 pyperclip.copy(ID)
+        elif event == "-SEARCH-":
+            search_for_occurance(window, values["-SEARCH-"], bib_data)
 
     if bib_data:
         with open("outdump.bib", 'w', encoding="utf8") as f:
