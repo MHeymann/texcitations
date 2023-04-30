@@ -55,9 +55,13 @@ def parse_quote(f, c):
         if c.isspace():
             qcontent += " "
             f, c = parse_whitespace(f, c)
+        elif c == "\\":
+            c = f.read(1) # skip escape
+            qcontent += f"\\{c}"
+            c = f.read(1) # skip special character
         elif c == "{":
-            nbracket, f, c = parse_bracket(f, c)
-            qcontent += "{" + nbracket + "}"
+            nbraces, f, c = parse_braces(f, c)
+            qcontent += "{" + nbraces + "}"
         else:
             qcontent += c
             c = f.read(1)
@@ -71,12 +75,12 @@ def parse_quote(f, c):
 
 
 
-def parse_bracket(f, c):
+def parse_braces(f, c):
     f, c = parse_whitespace(f, c)
     bcontent =""
 
     if not c == "{":
-        print ("open brackets with '{'")
+        print ("open braces with '{'")
         exit()
 
     c = f.read(1)
@@ -86,14 +90,18 @@ def parse_bracket(f, c):
         if c.isspace():
             bcontent += " "
             f, c = parse_whitespace(f, c)
+        elif c == "\\":
+            c = f.read(1) # skip escape
+            bcontent += f"\\{c}"
+            c = f.read(1) # skip special character
         elif c == "{":
-            nbracket, f, c = parse_bracket(f, c)
-            bcontent += "{" + nbracket + "}"
+            nbraces, f, c = parse_braces(f, c)
+            bcontent += "{" + nbraces + "}"
         else:
             bcontent += c
             c = f.read(1)
 
-    #skip over closing bracket
+    #skip over closing brace
     c = f.read(1)
 
     return bcontent.strip(), f, c
@@ -131,7 +139,7 @@ def parse_field(f, c):
     f, c = parse_whitespace(f, c)
 
     if c == "{":
-        fvalue, f, c = parse_bracket(f,c)
+        fvalue, f, c = parse_braces(f,c)
     elif c == "\"":
         fvalue, f, c = parse_quote(f,c)
     else:
@@ -168,9 +176,6 @@ def parse_entry_body(f, c):
     f, c = parse_whitespace(f, c)
 
     key, f, c = parse_cite_key(f, c)
-    #while c and not c.isspace() and not c == ",":
-    #    key += c
-    #    c = f.read(1)
     f, c = parse_whitespace(f, c)
 
     if not c == ",":
@@ -204,8 +209,8 @@ def format_names(authors):
     i = 0
     while i < len(authors) - 4:
         if authors[i] == "{":
-            i, bracket = skip_bracket(authors, i)
-            name += f'{{{bracket}}}'
+            i, braces = skip_braces(authors, i)
+            name += f'{{{braces}}}'
         elif authors[i: i+5] == " and ":
             author_list.append(name)
             i += 5
@@ -227,8 +232,8 @@ def format_names(authors):
         i = 0
         while i < len(author):
             if author[i] == "{":
-                i, bracket = skip_bracket(author, i)
-                name += f"{{{bracket}}}"
+                i, braces = skip_braces(author, i)
+                name += f"{{{braces}}}"
             elif author[i] == " ":
                 names.append(name)
                 name = ""
@@ -245,9 +250,9 @@ def format_names(authors):
             formatted_names.append(names[0])
     return " and ".join(formatted_names)
 
-def skip_bracket(authors, i):
+def skip_braces(authors, i):
     if not authors[i] == "{":
-        print ("open brackets with '{'")
+        print ("open braces with '{'")
         exit()
 
     i += 1
@@ -255,20 +260,20 @@ def skip_bracket(authors, i):
     cont = ""
     while not authors[i] == "}":
         if authors[i] == "{":
-            i, bracket = skip_bracket(authors, i)
-            cont += f"{{{bracket}}}"
+            i, braces = skip_braces(authors, i)
+            cont += f"{{{braces}}}"
         else:
             cont += authors[i]
             i += 1
 
-    #skip over closing bracket
+    #skip over closing brace
     i += 1
 
     return i, cont
 
 
 
-def repr_entry(entry):
+def entry_repr(entry):
     s = f'@{entry["entry_type"]}{{{entry["cite_key"]},\n'
 
     field_order = [ "author", "editor"
@@ -312,10 +317,13 @@ def parse_entry(f, c):
         print (f"Entry body should start with '{{', got {c} instead")
         exit()
 
-    key, fields, lcomments, f, c = parse_entry_body(f, c)
+    cite_key, fields, lcomments, f, c = parse_entry_body(f, c)
+
+    if "title" not in fields:
+        print(cite_key, "contains no title!")
 
     return {
-            "cite_key"   : key,
+            "cite_key"   : cite_key,
             "entry_type" : entry_type,
             "fields"     : fields,
             "comments"   : lcomments
@@ -324,31 +332,42 @@ def parse_entry(f, c):
 def bibtexlibrary_repr(bibtexlibrary):
     s = ""
     for cite_key in bibtexlibrary:
-        s += repr_entry(bibtexlibrary[cite_key])
+        s += entry_repr(bibtexlibrary[cite_key])
         s += "\n\n"
     return s
 
 def dump(bibtexlibrary, f):
     f.write(bibtexlibrary_repr(bibtexlibrary))
 
-def parse_library(fpath):
+
+def parse_library(f):
+    c = f.read(1)
+    f, c = parse_whitespace(f, c)
+    bibtexlibrary = {}
+    while c:
+        # get to start of entry
+        while c and not c == "@":
+            c = f.read(1)
+        if not c:
+            break
+
+        # xxx here
+        entry, f, c = parse_entry(f, c)
+
+        if entry["cite_key"] in bibtexlibrary:
+            print(entry["cite_key"], "is a duplicate.")
+            exit()
+        bibtexlibrary[entry["cite_key"]] = entry
+    return bibtexlibrary
+
+
+
+def read_library(fpath):
     bibtexlibrary = {}
 
     with open(fpath, encoding="utf8") as f:
-        c = f.read(1)
-        f, c = parse_whitespace(f, c)
-        while c:
-            # get to start of entry
-            while c and not c == "@":
-                c = f.read(1)
-            if not c:
-                break
-
-            # xxx here
-            entry, f, c = parse_entry(f, c)
-
-            bibtexlibrary[entry["cite_key"]] = entry
-
+        bibtexlibrary = parse_library(f)
+        
     return bibtexlibrary
 
 

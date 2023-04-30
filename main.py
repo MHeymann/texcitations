@@ -5,6 +5,7 @@ import sys
 import os.path
 import parsebibtex
 import pyperclip
+import io
 
 class listentries:
     def __init__(self, key, value):
@@ -39,8 +40,12 @@ def get_layout(bibfilepath):
         [
             sg.Text("Bibtex file"),
             sg.Input(bibfilepath, size=(25, 1), enable_events=True, key="-FILE-"),
-            sg.FileBrowse(),
+        ],
+        [
+            sg.FileBrowse(target="-FILE-"),
             sg.Button("Read"),
+            sg.Button("Insert"),
+            sg.Button("Save"),
         ],
         [
             sg.Listbox( values=[]
@@ -86,7 +91,7 @@ def read_library(window, libpath):
         window["-ENTRY LIST-"].update("")
         return None
 
-    bib_data = parsebibtex.parse_library(libpath)
+    bib_data = parsebibtex.read_library(libpath)
 
     # create a list of indices in the entries list, and the titles of the
     # corresponding articles, so as to be able to display and select
@@ -94,6 +99,9 @@ def read_library(window, libpath):
     articlelist = []
     for cite_key in bib_data:
         entry = bib_data[cite_key]
+        if "title" not in entry["fields"]:
+            print (cite_key, "has no 'title' field.")
+            exit()
         articlelist.append(listentries(cite_key, "- " + entry["fields"]['title']))
 
     window["-ENTRY LIST-"].update(articlelist)
@@ -143,8 +151,41 @@ def choose_entry(window, bib_data):
     ID = values["-ENTRY LIST-"][0].key
     return ID
 
+def write_bibtex_to_file(bib_data, path):
+    print(f"write to {path}")
+
+    if bib_data:
+        with open(path, 'w', encoding="utf8") as f:
+            parsebibtex.dump(bib_data, f)
+    else:
+        sg.popup("Warning: could not save - no library read in.")
+
+
+def popup_get_Mtext(message, default_text="", size=(50, 15), title=None, icon=None, keep_on_top=False):
+    layout = [
+        [sg.Text(message, auto_size_text=True)],
+        [sg.MLine(default_text=default_text, size=size, key='-INPUT-')],
+        [sg.Button('Submit', size=(8, 1), bind_return_key=True), sg.Button('Cancel', size=(8, 1))]
+    ]
+
+    iwindow = sg.Window(title=title or message,
+                       layout=layout,
+                       icon=icon,
+                       keep_on_top=keep_on_top,
+                       finalize=True,
+                       modal=True
+                       )
+    button, values = iwindow.read()
+    iwindow.close()
+    del iwindow
+    if button != 'Submit':
+        return None
+    else:
+        path = values['-INPUT-']
+        return path
 
 if __name__ == "__main__":
+    saved = False
     bibfilepath = get_bibfilepath()
 
     sg.theme("DarkBlue3")
@@ -159,12 +200,44 @@ if __name__ == "__main__":
     while True:
         event, values = window.read()
         if event == "Exit" or event == sg.WIN_CLOSED:
+            if saved:
+                pass
+            elif sg.popup_yes_no(f'Do you want to save to {bibfilepath}?') == "Yes":
+                write_bibtex_to_file(bib_data, bibfilepath)
+            elif sg.popup_yes_no(f'Do you want to save to a different file?') == "Yes":
+                bibfilepath = sg.popup_get_file("Please provide a file path to save to", save_as=True)
+                write_bibtex_to_file(bib_data, bibfilepath)
             break
-
         if event == "Read":
             # read in the bibtex library
-            bibfilepath = values["-FILE-"]
+            #bibfilepath = values["-FILE-"]
             bib_data = read_library(window, bibfilepath)
+        elif event == "-FILE-":
+            bibfilepath = values["-FILE-"]
+        elif event == "Insert":
+            new_entry_text = popup_get_Mtext("Please enter the bibtex code for the entry to be added below", title="Insert",size=(50,10))
+            f = io.StringIO(new_entry_text)
+            new_lib = parsebibtex.parse_library(f)
+            cite_key_collide = False
+            for cite_key in new_lib:
+                if cite_key in bib_data:
+                    sg.popup(f"{cite_key} is a duplicate, please enter with different cite_key")
+                    cite_key_collide = True
+            if not cite_key_collide:
+                for cite_key in new_lib:
+                    bib_data[cite_key] = new_lib[cite_key]
+            search_for_occurance(window, values["-SEARCH-"], bib_data)
+        elif event == "Save":
+            if sg.popup_yes_no(f'Do you want to save to {bibfilepath}?') == "Yes":
+                write_bibtex_to_file(bib_data, bibfilepath)
+                saved = True
+            else:
+                custompath = sg.popup_get_file("Please provide a file path to save to", save_as=True)
+                if custompath:
+                    write_bibtex_to_file(bib_data, custompath)
+                    saved = True
+                else:
+                    sg.popup("Not saving.")
         elif event == "-ENTRY LIST-" and len(values["-ENTRY LIST-"]) > 0:
             # A file was chosen from the listbox
             ID = choose_entry(window, bib_data)
@@ -174,9 +247,5 @@ if __name__ == "__main__":
         elif event == "-SEARCH-":
             search_for_occurance(window, values["-SEARCH-"], bib_data)
 
-    if bib_data:
-        with open("outdump.bib", 'w', encoding="utf8") as f:
-            parsebibtex.dump(bib_data, f)
     window.close()
-
 
