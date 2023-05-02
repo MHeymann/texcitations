@@ -1,5 +1,18 @@
 #! /usr/bin/python3
 
+field_order = [ "author", "editor"
+              , "title"
+              , "booktitle"
+              , "journal"
+              , "chapter", "pages"
+              , "publisher", "school", "institution"
+              , "year"
+              , "note"
+              , "doi", "url"
+              , "abstract"
+              ]
+
+
 def parse_whitespace(f, c):
     while c.isspace():
         c = f.read(1)
@@ -202,13 +215,16 @@ def parse_entry_body(f, c):
     f, c = parse_whitespace(f, c)
     return key, fields, lcomments, f, c
 
-def format_names(authors):
+def get_list_of_authors(authors):
     author_list = []
-
     name = ""
     i = 0
     while i < len(authors) - 4:
-        if authors[i] == "{":
+        if authors[i] == "\\":
+            i += 1
+            name += "\\" + authors[i]
+            i += 1
+        elif authors[i] == "{":
             i, braces = skip_braces(authors, i)
             name += f'{{{braces}}}'
         elif authors[i: i+5] == " and ":
@@ -221,33 +237,79 @@ def format_names(authors):
     name += authors[i:]
     author_list.append(name)
 
+    return author_list
+
+def get_names_surname(author):
+    i = 0
+    while i < len(author):
+        if author[i] == "\\":
+            i += 1
+            i += 1
+        elif author[i] == "{":
+            i, braces = skip_braces(author, i)
+        elif author[i] == ",":
+            author = author[0:i] + "\n" + author[i+1:]
+            #author[i] = "\n"
+            i += 1
+        elif author[i] == "\n":
+            # this should never happen, actually
+            #author[i] = " "
+            author = author[0:i] + " " + author[i+1:]
+            i += 1
+        else:
+            i += 1
+    t_auth = author.split("\n")
+    if len(t_auth) == 2:
+        surname = t_auth[0]
+        names = split_names_on_space(t_auth[1].strip())
+    elif len(t_auth) == 1:
+        i = 0
+        names = split_names_on_space(author)
+        surname = names[-1]
+        names = names[0:-1]
+    else:
+        print (f"badly formed author format: {author}")
+        print(t_auth)
+        print(len(t_auth))
+        exit()
+
+    return names, surname
+
+def split_names_on_space(author):
+    i = 0
+    names = []
+    name = ""
+    while i < len(author):
+        if author[i] == "\\":
+            i += 1
+            name += "\\" + author[i]
+            i += 1
+        elif author[i] == "{":
+            i, braces = skip_braces(author, i)
+            name += f"{{{braces}}}"
+        elif author[i] == " ":
+            names.append(name)
+            name = ""
+            i += 1
+        else:
+            name += author[i]
+            i += 1
+    names.append(name)
+    return names
+
+
+
+def format_names(authors):
+    author_list = get_list_of_authors(authors)
 
     formatted_names = []
     for author in author_list:
-        if "," in author:
-            formatted_names.append(author)
-            continue
-        names = []
-        name = ""
-        i = 0
-        while i < len(author):
-            if author[i] == "{":
-                i, braces = skip_braces(author, i)
-                name += f"{{{braces}}}"
-            elif author[i] == " ":
-                names.append(name)
-                name = ""
-                i += 1
-            else:
-                name += author[i]
-                i += 1
-        names.append(name)
-        #names = author.split(" ")
-        if len(names) > 1:
-            formatted_names.append("{surname}, {names}".format(surname=names[-1],
-                names=" ".join(names[0:-1])))
+        names, surname = get_names_surname(author)
+        if len(names) > 0:
+            formatted_names.append("{surname}, {names}".format(surname=surname,
+                names=" ".join(names)))
         else:
-            formatted_names.append(names[0])
+            formatted_names.append(surname)
     return " and ".join(formatted_names)
 
 def skip_braces(authors, i):
@@ -276,16 +338,6 @@ def skip_braces(authors, i):
 def entry_repr(entry):
     s = f'@{entry["entry_type"]}{{{entry["cite_key"]},\n'
 
-    field_order = [ "author", "editor"
-                  , "title"
-                  , "booktitle"
-                  , "journal"
-                  , "chapter", "pages"
-                  , "publisher", "school", "institution"
-                  , "year"
-                  , "note"
-                  , "doi", "url"
-                  ]
     l = []
     for key in field_order:
         if not key in entry["fields"]:
@@ -318,6 +370,16 @@ def parse_entry(f, c):
         exit()
 
     cite_key, fields, lcomments, f, c = parse_entry_body(f, c)
+    ordered_fields = {}
+    for k in field_order:
+        if not k in fields:
+            continue
+        ordered_fields[k] = fields[k]
+    for k in fields:
+        if k in k in field_order:
+            continue
+        ordered_fields[k] = fields[k]
+
 
     if "title" not in fields:
         print(cite_key, "contains no title!")
@@ -325,7 +387,7 @@ def parse_entry(f, c):
     return {
             "cite_key"   : cite_key,
             "entry_type" : entry_type,
-            "fields"     : fields,
+            "fields"     : ordered_fields,
             "comments"   : lcomments
             }, f, c
 
@@ -338,6 +400,28 @@ def bibtexlibrary_repr(bibtexlibrary):
 
 def dump(bibtexlibrary, f):
     f.write(bibtexlibrary_repr(bibtexlibrary))
+
+next_field_comparison = {"author": "year", "year": "title"}
+
+def entry_compare_key(a):
+    if "author" in a[1]["fields"]:
+        auth = a[1]["fields"]["author"]
+    else:
+        auth = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    if "year" in a[1]["fields"]:
+        year = a[1]["fields"]["year"]
+    else:
+        year = "1800"
+    if "title" in a[1]["fields"]:
+        title = a[1]["fields"]["title"]
+    else:
+        print("title-less bibtex-entry?")
+        title = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    return (auth, year, title)
+
+
+def sort_library(biblib):
+    return dict(sorted(biblib.items(), key=entry_compare_key))
 
 
 def parse_library(f):
@@ -358,7 +442,7 @@ def parse_library(f):
             print(entry["cite_key"], "is a duplicate.")
             exit()
         bibtexlibrary[entry["cite_key"]] = entry
-    return bibtexlibrary
+    return sort_library(bibtexlibrary)
 
 
 
@@ -367,7 +451,7 @@ def read_library(fpath):
 
     with open(fpath, encoding="utf8") as f:
         bibtexlibrary = parse_library(f)
-        
+
     return bibtexlibrary
 
 

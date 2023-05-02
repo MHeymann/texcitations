@@ -63,7 +63,7 @@ def get_layout(bibfilepath):
     # For now will only show the name of the file that was chosen
     image_viewer_column = [
         [sg.Text("Choose an article from list on left:")],
-        [sg.Text(size=(40, 1), key="-ID-", enable_events=True), sg.Button("Copy")],
+        [sg.Text(size=(40, 1), key="-ID-", enable_events=True), sg.Button("Copy"), sg.Button("Edit")],
         [
             sg.Multiline( default_text="\n"
                         , disabled=True
@@ -131,11 +131,10 @@ def search_for_occurance(window, searchterm, bib_data):
 
     window["-ENTRY LIST-"].update(articlelist)
 
-def choose_entry(window, bib_data):
+def choose_entry(window, entry):
     # clear content multiline
     window["-CONTENTS-"].update("")
-    entry = bib_data[values["-ENTRY LIST-"][0].key]
-    contentlist = []
+    contentlist = [f'Entry Type: {entry["entry_type"]}\n']
 
     for field in entry["fields"]:
         contentlist.append(f'{field}: \n{entry["fields"][field]}\n')
@@ -147,7 +146,7 @@ def choose_entry(window, bib_data):
 
     window["-CONTENTS-"].update("\n".join(contentlist))
 
-    window["-ID-"].update(values["-ENTRY LIST-"][0].key)
+    window["-ID-"].update(entry["cite_key"])
     ID = values["-ENTRY LIST-"][0].key
     return ID
 
@@ -240,10 +239,35 @@ if __name__ == "__main__":
                     sg.popup("Not saving.")
         elif event == "-ENTRY LIST-" and len(values["-ENTRY LIST-"]) > 0:
             # A file was chosen from the listbox
-            ID = choose_entry(window, bib_data)
+
+            entry = bib_data[values["-ENTRY LIST-"][0].key]
+            ID = choose_entry(window, entry)
         elif event == "Copy":
             if not ID == "":
                 pyperclip.copy(ID)
+        elif event == "Edit":
+            if ID == "":
+                sg.popup("No entry selected")
+                continue
+            edited_entry_text = popup_get_Mtext( "Please edit the bibtex code for the entry to be added below"
+                                               , default_text=parsebibtex.entry_repr(bib_data[ID])
+                                               , title="Edit"
+                                               , size=(50,10)
+                                               )
+            f = io.StringIO(edited_entry_text)
+            new_lib = parsebibtex.parse_library(f)
+            if not len(new_lib) == 1:
+                sg.popup("Edit is not the place to insert new entries.")
+                continue
+            for cite_key in new_lib:
+                edited_entry = new_lib[cite_key]
+
+            if not ID == edited_entry["cite_key"]:
+                bib_data.pop(ID)
+            bib_data[edited_entry["cite_key"]] = edited_entry
+            search_for_occurance(window, values["-SEARCH-"], bib_data)
+            ID = choose_entry(window, edited_entry)
+
         elif event == "-SEARCH-":
             search_for_occurance(window, values["-SEARCH-"], bib_data)
 
