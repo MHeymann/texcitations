@@ -1,5 +1,6 @@
 #! /usr/bin/python3
 
+standard_months = [ "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 field_order = [ "author", "editor"
               , "title"
               , "booktitle"
@@ -133,6 +134,20 @@ def parse_number(f, c):
 
     return num, f, c
 
+def parse_string(f, c):
+    s = ""
+
+    if not c.isalpha():
+        print(f"Strings have to start with alphabetic characters, got '{c}' instead.")
+        exit()
+
+    while c.isalpha():
+        s += c
+        c = f.read(1)
+
+    return s, f, c
+
+
 def parse_field(f, c):
     f, c = parse_whitespace(f, c)
 
@@ -155,6 +170,8 @@ def parse_field(f, c):
         fvalue, f, c = parse_braces(f,c)
     elif c == "\"":
         fvalue, f, c = parse_quote(f,c)
+    elif c.isalpha:
+        fvalue , f, c = parse_string(f,c)
     else:
         fvalue , f, c = parse_number(f,c)
 
@@ -179,6 +196,20 @@ def parse_line_comment(f, c):
     f, c = parse_whitespace(f, c)
 
     return lcomment, f, c
+
+def format_month(month):
+    if month.lower() in standard_months:
+        return month.lower()
+    elif month.isdigit():
+        imonth = int(month) - 1
+        return standard_months[imonth]
+    else:
+        for m in standard_months:
+            if m in month.lower():
+                return m
+    print(f"Warning: {month} is a nonstandard  representation of a month")
+    return month
+
 
 
 def parse_entry_body(f, c):
@@ -209,6 +240,9 @@ def parse_entry_body(f, c):
             fname, fvalue, f, c = parse_field(f,c)
             if fname == "author" or fname == "editor":
                 fvalue = format_names(fvalue)
+            elif fname == "month":
+                fvalue = format_month(fvalue)
+
             fields[fname] = fvalue
         i += 1
 
@@ -333,7 +367,11 @@ def skip_braces(authors, i):
 
     return i, cont
 
-
+def field_repr(fname, fvalue):
+    if fname == "month" and fvalue in standard_months:
+        return f'  {fname : <9} = {fvalue},'
+    else:
+        return f'  {fname : <9} = {{{fvalue}}},'
 
 def entry_repr(entry):
     s = f'@{entry["entry_type"]}{{{entry["cite_key"]},\n'
@@ -342,12 +380,12 @@ def entry_repr(entry):
     for key in field_order:
         if not key in entry["fields"]:
             continue
-        l.append(f'  {key : <9} = {{{entry["fields"][key]}}},')
+        l.append(field_repr(key, entry["fields"][key]))
 
-    for k in entry["fields"]:
+    for k in sorted(entry["fields"].keys()):
         if k in field_order:
             continue
-        l.append(f'  {k : <9} = {{{entry["fields"][k]}}},')
+        l.append(field_repr(k, entry["fields"][k]))
     for comm in entry["comments"]:
         l.insert(comm, "  %" + entry["comments"][comm])
 

@@ -183,8 +183,64 @@ def popup_get_Mtext(message, default_text="", size=(50, 15), title=None, icon=No
         path = values['-INPUT-']
         return path
 
+def insert_new_entry(bib_data):
+    new_entry_text = popup_get_Mtext("Please enter the bibtex code for the entry to be added below", title="Insert",size=(50,10))
+    f = io.StringIO(new_entry_text)
+    new_lib = parsebibtex.parse_library(f)
+    cite_key_collide = False
+    for cite_key in new_lib:
+        if cite_key in bib_data:
+            sg.popup(f"{cite_key} is a duplicate, please enter with different cite_key")
+            cite_key_collide = True
+            break
+    if not cite_key_collide:
+        for cite_key in new_lib:
+            bib_data[cite_key] = new_lib[cite_key]
+        return bib_data, True
+    else:
+        return bib_data, False
+
+def save_to_file(bibfilepath):
+    if sg.popup_yes_no(f'Do you want to save to {bibfilepath}?') == "Yes":
+        write_bibtex_to_file(bib_data, bibfilepath)
+        return True
+    else:
+        custompath = sg.popup_get_file("Please provide a file path to save to", save_as=True)
+        if custompath:
+            write_bibtex_to_file(bib_data, custompath)
+            return True
+        else:
+            sg.popup("Not saving.")
+            return False
+
+def edit_entry(ID, bib_data):
+    if ID == "":
+        sg.popup("No entry selected")
+        return None
+    edited_entry_text = popup_get_Mtext( "Please edit the bibtex code for the entry to be added below"
+                                       , default_text=parsebibtex.entry_repr(bib_data[ID])
+                                       , title="Edit"
+                                       , size=(50,10)
+                                       )
+    f = io.StringIO(edited_entry_text)
+    new_lib = parsebibtex.parse_library(f)
+    if len(new_lib) == 0:
+        return None
+    elif not len(new_lib) == 1:
+        sg.popup("Edit is not the place to insert new entries.")
+        return None
+    for cite_key in new_lib:
+        edited_entry = new_lib[cite_key]
+
+    if not ID == edited_entry["cite_key"]:
+        bib_data.pop(ID)
+    bib_data[edited_entry["cite_key"]] = edited_entry
+
+    return edited_entry
+
+
 if __name__ == "__main__":
-    saved = False
+    saved = True
     bibfilepath = get_bibfilepath()
 
     sg.theme("DarkBlue3")
@@ -214,60 +270,28 @@ if __name__ == "__main__":
         elif event == "-FILE-":
             bibfilepath = values["-FILE-"]
         elif event == "Insert":
-            new_entry_text = popup_get_Mtext("Please enter the bibtex code for the entry to be added below", title="Insert",size=(50,10))
-            f = io.StringIO(new_entry_text)
-            new_lib = parsebibtex.parse_library(f)
-            cite_key_collide = False
-            for cite_key in new_lib:
-                if cite_key in bib_data:
-                    sg.popup(f"{cite_key} is a duplicate, please enter with different cite_key")
-                    cite_key_collide = True
-            if not cite_key_collide:
-                for cite_key in new_lib:
-                    bib_data[cite_key] = new_lib[cite_key]
-            search_for_occurance(window, values["-SEARCH-"], bib_data)
+            bib_data, success = insert_new_entry(bib_data)
+            if success:
+                saved = False
+                bib_data = parsebibtex.sort_library(bib_data)
+                search_for_occurance(window, values["-SEARCH-"], bib_data)
         elif event == "Save":
-            if sg.popup_yes_no(f'Do you want to save to {bibfilepath}?') == "Yes":
-                write_bibtex_to_file(bib_data, bibfilepath)
-                saved = True
-            else:
-                custompath = sg.popup_get_file("Please provide a file path to save to", save_as=True)
-                if custompath:
-                    write_bibtex_to_file(bib_data, custompath)
-                    saved = True
-                else:
-                    sg.popup("Not saving.")
+            saved = save_to_file(bibfilepath)
         elif event == "-ENTRY LIST-" and len(values["-ENTRY LIST-"]) > 0:
             # A file was chosen from the listbox
-
             entry = bib_data[values["-ENTRY LIST-"][0].key]
             ID = choose_entry(window, entry)
         elif event == "Copy":
             if not ID == "":
                 pyperclip.copy(ID)
         elif event == "Edit":
-            if ID == "":
-                sg.popup("No entry selected")
+            edited_entry = edit_entry(ID, bib_data)
+            if not edited_entry:
                 continue
-            edited_entry_text = popup_get_Mtext( "Please edit the bibtex code for the entry to be added below"
-                                               , default_text=parsebibtex.entry_repr(bib_data[ID])
-                                               , title="Edit"
-                                               , size=(50,10)
-                                               )
-            f = io.StringIO(edited_entry_text)
-            new_lib = parsebibtex.parse_library(f)
-            if not len(new_lib) == 1:
-                sg.popup("Edit is not the place to insert new entries.")
-                continue
-            for cite_key in new_lib:
-                edited_entry = new_lib[cite_key]
-
-            if not ID == edited_entry["cite_key"]:
-                bib_data.pop(ID)
-            bib_data[edited_entry["cite_key"]] = edited_entry
+            saved = False
+            bib_data = parsebibtex.sort_library(bib_data)
             search_for_occurance(window, values["-SEARCH-"], bib_data)
             ID = choose_entry(window, edited_entry)
-
         elif event == "-SEARCH-":
             search_for_occurance(window, values["-SEARCH-"], bib_data)
 
