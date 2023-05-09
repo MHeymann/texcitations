@@ -1,13 +1,19 @@
 #! /usr/bin/python3
 
+import re
+
 standard_months = [ "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 field_order = [ "author", "editor"
               , "title"
               , "booktitle"
+              , "year"
+              , "month"
+              , "day"
               , "journal"
+              , "volume"
+              , "number"
               , "chapter", "pages"
               , "publisher", "school", "institution"
-              , "year"
               , "note"
               , "doi", "url"
               , "abstract"
@@ -439,11 +445,10 @@ def bibtexlibrary_repr(bibtexlibrary):
 def dump(bibtexlibrary, f):
     f.write(bibtexlibrary_repr(bibtexlibrary))
 
-next_field_comparison = {"author": "year", "year": "title"}
-
 def entry_compare_key(a):
+    regex = re.compile('[^a-zA-Z]')
     if "author" in a[1]["fields"]:
-        auth = a[1]["fields"]["author"]
+        auth = regex.sub('', a[1]["fields"]["author"])
     else:
         auth = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     if "year" in a[1]["fields"]:
@@ -451,7 +456,7 @@ def entry_compare_key(a):
     else:
         year = "1800"
     if "title" in a[1]["fields"]:
-        title = a[1]["fields"]["title"]
+        title = regex.sub('', a[1]["fields"]["title"])
     else:
         print("title-less bibtex-entry?")
         title = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
