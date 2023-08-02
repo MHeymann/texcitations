@@ -200,7 +200,7 @@ def insert_new_entry(bib_data):
     else:
         return bib_data, False
 
-def save_to_file(bibfilepath):
+def save_to_file(bib_data, bibfilepath):
     if sg.popup_yes_no(f'Do you want to save to {bibfilepath}?') == "Yes":
         write_bibtex_to_file(bib_data, bibfilepath)
         return True
@@ -250,23 +250,21 @@ if __name__ == "__main__":
     ID = ""
 
     bib_data = read_library(window, bibfilepath)
+    read_filepath = bibfilepath
 
     # Run the Event Loop
     while True:
         event, values = window.read()
         if event == "Exit" or event == sg.WIN_CLOSED:
-            if saved:
-                pass
-            elif sg.popup_yes_no(f'Do you want to save to {bibfilepath}?') == "Yes":
-                write_bibtex_to_file(bib_data, bibfilepath)
-            elif sg.popup_yes_no(f'Do you want to save to a different file?') == "Yes":
-                bibfilepath = sg.popup_get_file("Please provide a file path to save to", save_as=True)
-                write_bibtex_to_file(bib_data, bibfilepath)
+            if not saved:
+                saved = save_to_file(bib_data, read_filepath)
             break
         if event == "Read":
             # read in the bibtex library
-            #bibfilepath = values["-FILE-"]
+            if not saved:
+                saved = save_to_file(bib_data, read_filepath)
             bib_data = read_library(window, bibfilepath)
+            read_filepath = bibfilepath
         elif event == "-FILE-":
             bibfilepath = values["-FILE-"]
         elif event == "Insert":
@@ -276,7 +274,7 @@ if __name__ == "__main__":
                 bib_data = parsebibtex.sort_library(bib_data)
                 search_for_occurance(window, values["-SEARCH-"], bib_data)
         elif event == "Save":
-            saved = save_to_file(bibfilepath)
+            saved = save_to_file(bib_data, bibfilepath)
         elif event == "-ENTRY LIST-" and len(values["-ENTRY LIST-"]) > 0:
             # A file was chosen from the listbox
             entry = bib_data[values["-ENTRY LIST-"][0].key]

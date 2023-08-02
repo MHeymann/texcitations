@@ -166,7 +166,7 @@ def parse_field(f, c):
     f, c = parse_whitespace(f, c)
 
     if not c == "=":
-        print(f"expected '=', found '{c}'")
+        print(f"expected '=', found '{c}' for {fname}")
         exit()
 
     c = f.read(1)
