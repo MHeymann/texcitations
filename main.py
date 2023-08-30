@@ -102,7 +102,8 @@ def read_library(window, libpath):
         if "title" not in entry["fields"]:
             print (cite_key, "has no 'title' field.")
             exit()
-        articlelist.append(listentries(cite_key, "- " + entry["fields"]['title']))
+        names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['author'])[0])
+        articlelist.append(listentries(cite_key, "- " + surname + " " + entry["fields"]['year'] + ": "  + entry["fields"]['title']))
 
     window["-ENTRY LIST-"].update(articlelist)
     return bib_data
@@ -126,7 +127,9 @@ def search_for_occurance(window, searchterm, bib_data):
                     searchterm in entry["cite_key"].lower() or \
                     searchterm in entry["entry_type"].lower() or \
                     searchterm_in_list(searchterm, entry["comments"]):
-                articlelist.append(listentries(cite_key, "- " + entry["fields"]['title']))
+                names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['author'])[0])
+                articlelist.append(listentries(cite_key, "- " + surname + " " + entry["fields"]['year'] + ": "  + entry["fields"]['title']))
+                #articlelist.append(listentries(cite_key, "- " + entry["fields"]['title']))
                 break
 
     window["-ENTRY LIST-"].update(articlelist)
