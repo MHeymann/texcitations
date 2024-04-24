@@ -1,6 +1,7 @@
 #! /usr/bin/python3
 
-import PySimpleGUI as sg
+#import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 import sys
 import os.path
 import parsebibtex
@@ -93,19 +94,8 @@ def read_library(window, libpath):
 
     bib_data = parsebibtex.read_library(libpath)
 
-    # create a list of indices in the entries list, and the titles of the
-    # corresponding articles, so as to be able to display and select
-    # articles in the entry list.
-    articlelist = []
-    for cite_key in bib_data:
-        entry = bib_data[cite_key]
-        if "title" not in entry["fields"]:
-            print (cite_key, "has no 'title' field.")
-            exit()
-        names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['author'])[0])
-        articlelist.append(listentries(cite_key, "- " + surname + " " + entry["fields"]['year'] + ": "  + entry["fields"]['title']))
-
-    window["-ENTRY LIST-"].update(articlelist)
+    window["-CONTENTS-"].update("")
+    window["-ENTRY LIST-"].update(search_for_occurance("", bib_data))
     return bib_data
 
 def searchterm_in_list(searchterm, l):
@@ -114,25 +104,38 @@ def searchterm_in_list(searchterm, l):
             return True
     return False
 
-def search_for_occurance(window, searchterm, bib_data):
-
+def search_for_occurance(searchterm, bib_data):
     searchterm = searchterm.lower()
-    window["-CONTENTS-"].update("")
     articlelist = []
     for cite_key in bib_data:
         entry = bib_data[cite_key]
+        if "title" not in entry["fields"]:
+            print (cite_key, "has no 'title' field.")
+            exit()
+        if "author" not in entry["fields"] and "editor" not in entry["fields"]:
+            print (cite_key, "has no 'author' or 'editor' field.")
+            exit()
+        if "year" not in entry["fields"] and "date" not in entry["fields"]:
+            print (cite_key, "has no 'year' or 'date' field.")
+            exit()
         for field in entry["fields"]:
             if searchterm in entry["fields"][field].lower() or \
                     searchterm in field or \
                     searchterm in entry["cite_key"].lower() or \
                     searchterm in entry["entry_type"].lower() or \
                     searchterm_in_list(searchterm, entry["comments"]):
-                names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['author'])[0])
-                articlelist.append(listentries(cite_key, "- " + surname + " " + entry["fields"]['year'] + ": "  + entry["fields"]['title']))
-                #articlelist.append(listentries(cite_key, "- " + entry["fields"]['title']))
+                if 'year' in entry['fields']:
+                    year = entry["fields"]["year"]
+                else:
+                    year = entry["fields"]["date"][0:4]
+                if not 'author' in entry['fields']:
+                    names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['editor'])[0])
+                else:
+                    names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['author'])[0])
+                articlelist.append(listentries(cite_key, "- " + surname + " " + year + ": "  + entry["fields"]['title']))
                 break
 
-    window["-ENTRY LIST-"].update(articlelist)
+    return articlelist
 
 def choose_entry(window, entry):
     # clear content multiline
@@ -275,7 +278,10 @@ if __name__ == "__main__":
             if success:
                 saved = False
                 bib_data = parsebibtex.sort_library(bib_data)
-                search_for_occurance(window, values["-SEARCH-"], bib_data)
+
+                window["-CONTENTS-"].update("")
+                window["-ENTRY LIST-"].update(search_for_occurance(values["-SEARCH-"], bib_data))
+                #search_for_occurance(window, values["-SEARCH-"], bib_data)
         elif event == "Save":
             saved = save_to_file(bib_data, bibfilepath)
         elif event == "-ENTRY LIST-" and len(values["-ENTRY LIST-"]) > 0:
@@ -291,10 +297,15 @@ if __name__ == "__main__":
                 continue
             saved = False
             bib_data = parsebibtex.sort_library(bib_data)
-            search_for_occurance(window, values["-SEARCH-"], bib_data)
+
+            window["-CONTENTS-"].update("")
+            window["-ENTRY LIST-"].update(search_for_occurance(values["-SEARCH-"], bib_data))
+            #search_for_occurance(window, values["-SEARCH-"], bib_data)
             ID = choose_entry(window, edited_entry)
         elif event == "-SEARCH-":
-            search_for_occurance(window, values["-SEARCH-"], bib_data)
+            window["-CONTENTS-"].update("")
+            window["-ENTRY LIST-"].update(search_for_occurance(values["-SEARCH-"], bib_data))
+            #search_for_occurance(window, values["-SEARCH-"], bib_data)
 
     window.close()
 

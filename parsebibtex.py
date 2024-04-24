@@ -3,19 +3,20 @@
 import re
 
 standard_months = [ "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
-field_order = [ "author", "editor"
-              , "title"
-              , "booktitle"
-              , "year"
-              , "month"
-              , "day"
-              , "journal"
+field_order = [ "entrysubtype"
+              , "author", "editor"
+              , "title", "subtitle"
+              , "booktitle", "booksubtitle"
+              , "year", "month", "day", "date"
+              , "yeardivision"
+              , "journal", "journalname"
               , "volume"
               , "number"
               , "chapter", "pages"
               , "publisher", "school", "institution"
               , "note"
               , "doi", "url"
+              , "keywords"
               , "abstract"
               ]
 
@@ -449,6 +450,8 @@ def entry_compare_key(a):
     regex = re.compile('[^a-zA-Z]')
     if "author" in a[1]["fields"]:
         auth = regex.sub('', a[1]["fields"]["author"])
+    elif "editor" in a[1]["fields"]:
+        auth = regex.sub('', a[1]["fields"]["editor"])
     else:
         auth = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     if "year" in a[1]["fields"]:
