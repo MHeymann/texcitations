@@ -447,7 +447,7 @@ def dump(bibtexlibrary, f):
     f.write(bibtexlibrary_repr(bibtexlibrary))
 
 def entry_compare_key(a):
-    regex = re.compile('[^a-zA-Z]')
+    regex = re.compile('[^a-zA-Z\d\s:]')
     if "author" in a[1]["fields"]:
         auth = regex.sub('', a[1]["fields"]["author"])
     elif "editor" in a[1]["fields"]:
@@ -456,6 +456,8 @@ def entry_compare_key(a):
         auth = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     if "year" in a[1]["fields"]:
         year = a[1]["fields"]["year"]
+    elif "date" in a[1]["fields"]:
+        year = a[1]["fields"]["date"][:4]
     else:
         year = "1800"
     if "title" in a[1]["fields"]:
