@@ -452,19 +452,27 @@ def entry_compare_key(a):
         auth = regex.sub('', a[1]["fields"]["author"])
     elif "editor" in a[1]["fields"]:
         auth = regex.sub('', a[1]["fields"]["editor"])
+    elif "title" in a[1]["fields"]:
+        auth = regex.sub('', a[1]["fields"]["title"])
     else:
-        auth = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        # default: just sort ahead of everything else
+        auth = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
     if "year" in a[1]["fields"]:
         year = a[1]["fields"]["year"]
     elif "date" in a[1]["fields"]:
         year = a[1]["fields"]["date"][:4]
     else:
+        # default: just sort ahead of everything else,
+        # unless we have stuff from before 1800
         year = "1800"
+
     if "title" in a[1]["fields"]:
         title = regex.sub('', a[1]["fields"]["title"])
     else:
         print("title-less bibtex-entry?")
-        title = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        # default: just sort ahead of everything else
+        title = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     return (auth, year, title)
 
 

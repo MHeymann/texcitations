@@ -112,9 +112,9 @@ def search_for_occurance(searchterm, bib_data):
         if "title" not in entry["fields"]:
             print (cite_key, "has no 'title' field.")
             exit()
-        if "author" not in entry["fields"] and "editor" not in entry["fields"]:
-            print (cite_key, "has no 'author' or 'editor' field.")
-            exit()
+        #if "author" not in entry["fields"] and "editor" not in entry["fields"]:
+        #    print (cite_key, "has no 'author' or 'editor' field.")
+        #    exit()
         if "year" not in entry["fields"] and "date" not in entry["fields"]:
             print (cite_key, "has no 'year' or 'date' field.")
             exit()
@@ -128,10 +128,12 @@ def search_for_occurance(searchterm, bib_data):
                     year = entry["fields"]["year"]
                 else:
                     year = entry["fields"]["date"][0:4]
-                if not 'author' in entry['fields']:
+                if 'editor' in entry['fields']:
                     names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['editor'])[0])
-                else:
+                elif 'author' in entry['fields']:
                     names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['author'])[0])
+                else:
+                    surname = entry["fields"]["title"]
                 articlelist.append(listentries(cite_key, "- " + surname + " " + year + ": "  + entry["fields"]['title']))
                 break
 
