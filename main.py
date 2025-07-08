@@ -128,10 +128,10 @@ def search_for_occurance(searchterm, bib_data):
                     year = entry["fields"]["year"]
                 else:
                     year = entry["fields"]["date"][0:4]
-                if 'editor' in entry['fields']:
-                    names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['editor'])[0])
-                elif 'author' in entry['fields']:
+                if 'author' in entry['fields']:
                     names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['author'])[0])
+                elif 'editor' in entry['fields']:
+                    names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['editor'])[0])
                 else:
                     surname = entry["fields"]["title"]
                 articlelist.append(listentries(cite_key, "- " + surname + " " + year + ": "  + entry["fields"]['title']))
