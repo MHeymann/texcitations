@@ -49,15 +49,15 @@ def get_layout(bibfilepath):
             sg.Button("Save"),
         ],
         [
+            sg.Text("Search"),
+            sg.Input("", size=(25, 1), enable_events=True, key="-SEARCH-"),
+        ],
+        [
             sg.Listbox( values=[]
                       , enable_events=True
                       , size=(40, 200)
                       , key="-ENTRY LIST-"
                       )
-        ],
-        [
-            sg.Text("Search"),
-            sg.Input("", size=(25, 1), enable_events=True, key="-SEARCH-"),
         ],
     ]
 
