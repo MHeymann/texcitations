@@ -51,7 +51,7 @@ def get_layout(bibfilepath):
         [
             sg.Listbox( values=[]
                       , enable_events=True
-                      , size=(40, 20)
+                      , size=(40, 200)
                       , key="-ENTRY LIST-"
                       )
         ],
@@ -64,12 +64,12 @@ def get_layout(bibfilepath):
     # For now will only show the name of the file that was chosen
     image_viewer_column = [
         [sg.Text("Choose an article from list on left:")],
-        [sg.Text(size=(40, 1), key="-ID-", enable_events=True), sg.Button("Copy"), sg.Button("Edit")],
+        [sg.Text(size=(26, 1), key="-ID-", enable_events=True), sg.Button("Copy"), sg.Button("Edit")],
         [
             sg.Multiline( default_text="\n"
                         , disabled=True
                         , enable_events=False
-                        , size=(40, 20)
+                        , size=(40, 200)
                         , key="-CONTENTS-"
                         )
         ],
@@ -78,9 +78,9 @@ def get_layout(bibfilepath):
     # Full layout
     layout = [
         [
-            sg.Column(file_list_column),
+            sg.Column(file_list_column, key='-BIB_ENTRY_COL-'),
             sg.VSeperator(),
-            sg.Column(image_viewer_column),
+            sg.Column(image_viewer_column, key='-ENTRY_INFO_COL-'),
         ]
     ]
     return layout
@@ -254,7 +254,20 @@ if __name__ == "__main__":
     sg.theme("DarkBlue3")
     sg.set_options(font=("Arial", 12))
     layout = get_layout(bibfilepath)
-    window = sg.Window("Bib Viewer", layout, finalize=True)
+    window = sg.Window("Bib Viewer",
+                       layout,
+                       size=(1000, 500),
+                       resizable=True,
+                       finalize=True
+                       )
+
+    for key in ["-ENTRY_INFO_COL-",
+                "-BIB_ENTRY_COL-",
+                "-ID-",
+                "-CONTENTS-",
+                "-ENTRY LIST-"
+               ]:
+        window[key].expand(expand_x=True, expand_y=True, expand_row=False)
     ID = ""
 
     bib_data = read_library(window, bibfilepath)
