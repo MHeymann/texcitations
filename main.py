@@ -2,6 +2,7 @@
 
 #import PySimpleGUI as sg
 import FreeSimpleGUI as sg
+#import FreeSimpleGUIQt as sg
 import sys
 import os.path
 import parsebibtex
@@ -55,7 +56,7 @@ def get_layout(bibfilepath):
         [
             sg.Listbox( values=[]
                       , enable_events=True
-                      , size=(40, 200)
+                      , size=(40, 100)
                       , key="-ENTRY LIST-"
                       )
         ],
@@ -95,7 +96,7 @@ def read_library(window, libpath):
     bib_data = parsebibtex.read_library(libpath)
 
     window["-CONTENTS-"].update("")
-    window["-ENTRY LIST-"].update(search_for_occurance("", bib_data))
+    window["-ENTRY LIST-"].update(search_for_occurance("", bib_data, libpath))
     return bib_data
 
 def searchterm_in_list(searchterm, l):
@@ -104,17 +105,16 @@ def searchterm_in_list(searchterm, l):
             return True
     return False
 
-def search_for_occurance(searchterm, bib_data):
+def search_for_occurance(searchterm, bib_data, read_filepath):
     searchterm = searchterm.lower()
     articlelist = []
     for cite_key in bib_data:
+        pdf_path = os.path.join(os.path.dirname(read_filepath), "articles", cite_key + ".pdf")
+        pdf_present = os.path.exists(pdf_path)
         entry = bib_data[cite_key]
         if "title" not in entry["fields"]:
             print (cite_key, "has no 'title' field.")
             exit()
-        #if "author" not in entry["fields"] and "editor" not in entry["fields"]:
-        #    print (cite_key, "has no 'author' or 'editor' field.")
-        #    exit()
         if "year" not in entry["fields"] and "date" not in entry["fields"]:
             print (cite_key, "has no 'year' or 'date' field.")
             exit()
@@ -134,7 +134,7 @@ def search_for_occurance(searchterm, bib_data):
                     names, surname = parsebibtex.get_names_surname(parsebibtex.get_list_of_authors(entry["fields"]['editor'])[0])
                 else:
                     surname = entry["fields"]["title"]
-                articlelist.append(listentries(cite_key, "- " + surname + " " + year + ": "  + entry["fields"]['title']))
+                articlelist.append(listentries(cite_key, ("+ " if pdf_present else "- ") + surname + " " + year + ": "  + entry["fields"]['title']))
                 break
 
     return articlelist
@@ -295,8 +295,7 @@ if __name__ == "__main__":
                 bib_data = parsebibtex.sort_library(bib_data)
 
                 window["-CONTENTS-"].update("")
-                window["-ENTRY LIST-"].update(search_for_occurance(values["-SEARCH-"], bib_data))
-                #search_for_occurance(window, values["-SEARCH-"], bib_data)
+                window["-ENTRY LIST-"].update(search_for_occurance(values["-SEARCH-"], bib_data, read_filepath))
         elif event == "Save":
             saved = save_to_file(bib_data, bibfilepath)
         elif event == "-ENTRY LIST-" and len(values["-ENTRY LIST-"]) > 0:
@@ -314,13 +313,11 @@ if __name__ == "__main__":
             bib_data = parsebibtex.sort_library(bib_data)
 
             window["-CONTENTS-"].update("")
-            window["-ENTRY LIST-"].update(search_for_occurance(values["-SEARCH-"], bib_data))
-            #search_for_occurance(window, values["-SEARCH-"], bib_data)
+            window["-ENTRY LIST-"].update(search_for_occurance(values["-SEARCH-"], bib_data, read_filepath))
             ID = choose_entry(window, edited_entry)
         elif event == "-SEARCH-":
             window["-CONTENTS-"].update("")
-            window["-ENTRY LIST-"].update(search_for_occurance(values["-SEARCH-"], bib_data))
-            #search_for_occurance(window, values["-SEARCH-"], bib_data)
+            window["-ENTRY LIST-"].update(search_for_occurance(values["-SEARCH-"], bib_data, read_filepath))
 
     window.close()
 
